@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P&T ลั่นชัตเตอร์สตูดิโอ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400&display=swap" rel="stylesheet">
+  <style>
+    /* ตั้งค่าเริ่มต้น */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Mitr', sans-serif;
+      background: linear-gradient(135deg, #f7b733, #fc4a1a);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .gallery {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .gallery-item-container {
+      position: relative;
+      width: 150px;
+      height: 150px;
+    }
+
+    .gallery-item {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      transition: transform 0.2s;
+    }
+
+    .gallery-item:hover {
+      transform: scale(1.1);
+      border-color: #007bff;
+    }
+
+    .download-btn {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: none;
+      border-radius: 3px;
+      padding: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .gallery-item-container:hover .download-btn {
+      opacity: 1;
+    }
+
+    video {
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>P&T ลั่นชัตเตอร์สตูดิโอ</h1>
+  <div>
+   
+    <h2>แสกนใบหน้า</h2>
+  
+    <video id="video" autoplay muted></video>
+    <button id="captureButton">แสกนใบหน้า</button>
+    <canvas id="snapshot" style="display: none;"></canvas> 
+    <div id="results"></div>
+
+    <div id="gallery" class="gallery">
+      <!-- รูปภาพจะแสดงที่นี่ -->
+    </div>  
+  
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+    <script src="/models/face-api.js"></script>
+    <script src="/models/ssd_mobilenetv1_model-weights_manifest.json"></script>
+    <script src="/models/face_landmark_68_model-weights_manifest.json"></script>
+    <script src="/models/face_recognition_model-weights_manifest.json"></script>
+    <script>
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("snapshot");
+      const captureButton = document.getElementById("captureButton");
+      const resultsDiv = document.getElementById('results');
+      const imageFolder = './uploads'; // ใส่โฟลเดอร์ที่เก็บรูปภาพที่ต้องการค้นหา
+    
+      // โหลดโมเดล Face API
+      async function loadModels() {
+        const modelPath = '/models'; // ชี้ไปที่โฟลเดอร์ที่เก็บโมเดล
+        await faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(modelPath);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(modelPath);
+        console.log("โมเดลทั้งหมดโหลดสำเร็จ");
+      }
+    
+      // ฟังก์ชันเปิดกล้อง
+      async function startCamera() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          document.getElementById('video').srcObject = stream;
+        } catch (error) {
+          console.error("ไม่สามารถเปิดกล้องได้:", error);
+          alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบการตั้งค่ากล้อง");
+        }
+      }
+    
+      // ฟังก์ชันจับภาพจากกล้องและค้นหาไฟล์ที่ตรงกัน
+      async function captureAndMatchFace() {
+        const context = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+    
+        // ถ่ายภาพจากกล้อง
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const capturedFace = await faceapi
+          .detectSingleFace(canvas)
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+    
+        if (!capturedFace) {
+          alert("ไม่พบใบหน้าในภาพที่ถ่าย");
+          return;
+        }
+    
+        try {
+          // ดึงรายการไฟล์จากโฟลเดอร์ uploads
+          const response = await fetch("/files");
+          if (!response.ok) throw new Error("ไม่สามารถดึงรายการไฟล์ได้");
+          const files = await response.json();
+    
+          let matchedFiles = [];
+          for (const file of files) {
+            const img = await faceapi.fetchImage(`/uploads/${file}`);
+            const result = await faceapi
+              .detectSingleFace(img)
+              .withFaceLandmarks()
+              .withFaceDescriptor();
+    
+            if (result) {
+              const distance = faceapi.euclideanDistance(
+                capturedFace.descriptor,
+                result.descriptor
+              );
+    
+              if (distance < 0.6) { // ปรับค่าระยะให้เหมาะสม
+                matchedFiles.push(file);
+              }
+            }
+          }
+    
+          if (matchedFiles.length > 0) {
+            displayMatchedFiles(matchedFiles); // แสดงไฟล์ที่ตรงกับใบหน้า
+          } else {
+            alert("ไม่พบรูปที่ตรงกับใบหน้า");
+            displayAllFiles(); // ถ้าไม่พบรูปที่ตรงกัน, แสดงไฟล์ทั้งหมด
+          }
+        } catch (error) {
+          console.error("เกิดข้อผิดพลาดระหว่างการค้นหา:", error);
+          alert("เกิดข้อผิดพลาดในการค้นหา กรุณาลองใหม่อีกครั้ง");
+        }
+      }
+    
+      // แสดงไฟล์ที่ตรงกัน
+      function displayMatchedFiles(files) {
+        const gallery = document.getElementById("gallery");
+        gallery.innerHTML = ""; // เคลียร์ข้อมูลเดิมก่อน
+    
+        files.forEach((file) => {
+          const container = document.createElement("div");
+          container.className = "gallery-item-container";
+    
+          const img = document.createElement("img");
+          img.src = `/uploads/${file}`;
+          img.alt = file;
+          img.className = "gallery-item";
+    
+          const downloadBtn = document.createElement("button");
+          downloadBtn.textContent = "⭳";
+          downloadBtn.className = "download-btn";
+          downloadBtn.onclick = () => {
+            const link = document.createElement("a");
+            link.href = `/uploads/${file}`;
+            link.download = file;
+            link.click();
+          };
+    
+          container.appendChild(img);
+          container.appendChild(downloadBtn);
+          gallery.appendChild(container);
+        });
+      }
+    
+      // แสดงไฟล์ทั้งหมดจาก uploads
+      function displayAllFiles() {
+        const gallery = document.getElementById("gallery");
+        gallery.innerHTML = ""; // เคลียร์ข้อมูลเดิมก่อน
+    
+        fetch("/files")
+          .then((response) => response.json())
+          .then((files) => {
+            files.forEach((file) => {
+              const container = document.createElement("div");
+              container.className = "gallery-item-container";
+    
+              const img = document.createElement("img");
+              img.src = `/uploads/${file}`;
+              img.alt = file;
+              img.className = "gallery-item";
+    
+              const downloadBtn = document.createElement("button");
+              downloadBtn.textContent = "⭳";
+              downloadBtn.className = "download-btn";
+              downloadBtn.onclick = () => {
+                const link = document.createElement("a");
+                link.href = `/uploads/${file}`;
+                link.download = file;
+                link.click();
+              };
+    
+              container.appendChild(img);
+              container.appendChild(downloadBtn);
+              gallery.appendChild(container);
+            });
+          })
+          .catch((error) => console.error("Error fetching files:", error));
+      }
+    
+      // เมื่อกดปุ่มถ่ายภาพ
+      captureButton.addEventListener("click", async () => {
+        try {
+          if (!video.srcObject) {
+            await startCamera();
+            alert("กล้องพร้อมแล้ว กดถ่ายภาพ!");
+            return;
+          }
+          await captureAndMatchFace();
+        } catch (error) {
+          console.error("เกิดข้อผิดพลาดระหว่างการถ่ายภาพ:", error);
+          alert("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+        }
+      });
+    
+      // เริ่มต้นการทำงานเมื่อโหลดหน้า
+      window.onload = async () => {
+        await loadModels(); // โหลดโมเดล
+        await startCamera(); // เปิดกล้อง
+        displayAllFiles(); // แสดงไฟล์ทั้งหมดเมื่อโหลดหน้า
+      };
+    
+    </script>
+    
+    
+</body>
+</html>
