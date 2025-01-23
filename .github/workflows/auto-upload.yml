@@ -3,7 +3,7 @@ name: Auto Update and Push
 on:
   push:
     paths:
-      - "uploads/**"   # ตรวจจับการเปลี่ยนแปลงในโฟลเดอร์ uploads
+      - "uploads/**"   # Trigger เมื่อมีการเปลี่ยนแปลงในโฟลเดอร์ uploads
 
 jobs:
   auto-update:
@@ -19,7 +19,10 @@ jobs:
         git config --global user.email "your-email@example.com"
 
     - name: Commit and Push Changes
+      env:
+        TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
+        git remote set-url origin https://x-access-token:${TOKEN}@github.com/username/P&T-Studio.git
         git add uploads/
-        git commit -m "Auto-update: Added new files in uploads"
+        git commit -m "Auto-update: Added new files in uploads" || echo "No changes to commit"
         git push origin main
