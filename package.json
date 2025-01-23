@@ -2,22 +2,37 @@
   "name": "pt",
   "version": "1.0.0",
   "main": "sever.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon sever.js"
   },
   "author": "",
   "license": "MIT",
-  "description": "",
   "dependencies": {
+    "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
+    "body-parser": "^1.20.3",
     "chokidar": "^4.0.3",
+    "cloudinary": "^2.5.1",
     "csurf": "^1.10.0",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "firebase": "^11.2.0",
     "fs-extra": "^11.3.0",
     "helmet": "^8.0.0",
     "multer": "^1.4.5-lts.1",
+    "nodemon": "^3.1.9",
     "request": "^2.88.2",
     "socket.io": "^4.8.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thitikorn-P/SCAN-QR-.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/Thitikorn-P/SCAN-QR-/issues"
+  },
+  "homepage": "https://github.com/Thitikorn-P/SCAN-QR-#readme",
+  "description": ""
 }

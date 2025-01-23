@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>P&T ลั่นชัตเตอร์สตูดิโอ</title>
   <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400&display=swap" rel="stylesheet">
+
   <style>
     /* ตั้งค่าเริ่มต้น */
     * {
@@ -104,14 +105,16 @@
   <div>
    
     <h2>แสกนใบหน้า</h2>
-  
+
     <video id="video" autoplay muted></video>
     <button id="captureButton">แสกนใบหน้า</button>
     <canvas id="snapshot" style="display: none;"></canvas> 
     <div id="results"></div>
 
     <div id="gallery" class="gallery">
-      <!-- รูปภาพจะแสดงที่นี่ -->
+      <!-- แสดงภาพตัวอย่าง -->
+      <img src="/uploads/image1.jpg" alt=" Image" style="width: 150px; height: 150px; object-fit: cover; border: 2px solid #fff; border-radius: 5px; margin-bottom: 10px;">
+      <!-- รูปภาพอื่นๆ ที่มาจากโฟลเดอร์ uploads -->
     </div>  
   
     <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
@@ -119,13 +122,27 @@
     <script src="/models/ssd_mobilenetv1_model-weights_manifest.json"></script>
     <script src="/models/face_landmark_68_model-weights_manifest.json"></script>
     <script src="/models/face_recognition_model-weights_manifest.json"></script>
+    <script src="https://upload.widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+
     <script>
       const video = document.getElementById("video");
       const canvas = document.getElementById("snapshot");
       const captureButton = document.getElementById("captureButton");
       const resultsDiv = document.getElementById('results');
-      const imageFolder = './uploads'; // ใส่โฟลเดอร์ที่เก็บรูปภาพที่ต้องการค้นหา
+      const imageFolder = '/uploads'; // ใส่โฟลเดอร์ที่เก็บรูปภาพที่ต้องการค้นหา
     
+      fetch('/uploads')
+            .then(response => response.json())
+            .then(images => {
+                const gallery = document.querySelector('.gallery');
+                images.forEach(image => {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = `/uploads/${image}`;
+                    imgElement.alt = image;
+                    gallery.appendChild(imgElement);
+                });
+            });
+      
       // โหลดโมเดล Face API
       async function loadModels() {
         const modelPath = '/models'; // ชี้ไปที่โฟลเดอร์ที่เก็บโมเดล
@@ -135,6 +152,7 @@
         console.log("โมเดลทั้งหมดโหลดสำเร็จ");
       }
     
+      
       // ฟังก์ชันเปิดกล้อง
       async function startCamera() {
         try {
@@ -289,8 +307,7 @@
         displayAllFiles(); // แสดงไฟล์ทั้งหมดเมื่อโหลดหน้า
       };
     
+      
     </script>
-    
-    
 </body>
 </html>

@@ -1,33 +1,41 @@
-const express = require("express");
-const chokidar = require("chokidar");
-const fs = require("fs");
-const path = require("path");
-const fsExtra = require("fs-extra");
+import express from "express";
+import bodyParser from "body-parser";
+import chokidar from "chokidar";
+import fs from "fs";
+import path from "path";
+import fsExtra from "fs-extra";
+import { Server } from "socket.io";
+import multer from "multer";
 
+// ตั้งค่า Express
 const app = express();
 const PORT = 3000;
 
-// โฟลเดอร์ที่ใช้งาน
+// ตั้งค่าการอัปโหลดไฟล์ด้วย Multer
+const storage = multer.memoryStorage();  // ใช้ storage แบบ in-memory
+const upload = multer({ storage: storage });
+
+// สร้างโฟลเดอร์หากยังไม่มี
+const __dirname = path.resolve();
 const syncFolder = path.join(__dirname, "sync-folder");
 const uploadDir = path.join(__dirname, "uploads");
 const modelDir = path.join(__dirname, "models");
 const publicDir = path.join(__dirname, "public");
 
-// สร้างโฟลเดอร์หากยังไม่มี
 if (!fs.existsSync(syncFolder)) fs.mkdirSync(syncFolder);
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 if (!fs.existsSync(modelDir)) fs.mkdirSync(modelDir);
 
 // ตั้งค่า Chokidar ให้จับตาดู sync-folder
-const allowedExtensions = [".jpg", ".png"]; // กำหนดไฟล์ที่อนุญาต
+const allowedExtensions = [".jpg", ".png"];
 const watcher = chokidar.watch(syncFolder, { persistent: true });
 
 watcher.on("add", (filePath) => {
   const ext = path.extname(filePath).toLowerCase();
   if (!allowedExtensions.includes(ext)) return;
 
-  const fileName = path.basename(filePath); // ชื่อไฟล์
-  const destPath = path.join(uploadDir, fileName); // ที่อยู่ปลายทาง
+  const fileName = path.basename(filePath);
+  const destPath = path.join(uploadDir, fileName);
 
   // คัดลอกไฟล์จาก sync-folder ไปยัง uploads
   fsExtra.copy(filePath, destPath, (err) => {
@@ -35,9 +43,23 @@ watcher.on("add", (filePath) => {
       console.error(`Error copying file: ${err}`);
     } else {
       console.log(`File copied to uploads: ${fileName}`);
-      io.emit('new-file', fileName); // ส่งการอัปเดตไปยังไคลเอนต์
+
+      // ส่งการอัปเดตไปยังไคลเอนต์
+      io.emit("new-file", fileName);
     }
   });
+});
+
+// API สำหรับอัปโหลดไฟล์
+app.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    // ตัวอย่างการบันทึกไฟล์ลงในโฟลเดอร์ uploads
+    const filePath = path.join(uploadDir, req.file.originalname);
+    fs.writeFileSync(filePath, req.file.buffer);
+    res.status(200).json({ message: 'File uploaded successfully', fileName: req.file.originalname });
+  } catch (error) {
+    return res.status(500).json({ error: 'Upload failed' });
+  }
 });
 
 // API สำหรับดึงไฟล์จาก uploads
@@ -46,16 +68,14 @@ app.get("/files", (req, res) => {
     if (err) {
       return res.status(500).json({ error: "Failed to retrieve files" });
     }
-    res.json(files); // ส่งรายการไฟล์กลับไปยังไคลเอนต์
+    res.json(files);
   });
 });
 
-  
-// ให้บริการไฟล์ static (uploads, models, public)
+// ให้บริการไฟล์ static
 app.use("/uploads", express.static(uploadDir));
 app.use("/models", express.static(modelDir));
 app.use(express.static(publicDir));
-app.use("/models", express.static(path.join(__dirname, "models")));
 
 // รันเซิร์ฟเวอร์
 const server = app.listen(PORT, () => {
@@ -63,6 +83,11 @@ const server = app.listen(PORT, () => {
 });
 
 // ตั้งค่า Socket.IO
-const socketIo = require("socket.io");
-const io = socketIo(server);
+const io = new Server(server);
 
+io.on("connection", (socket) => {
+  console.log("A user connected");
+
+  // ตัวอย่างการส่งข้อความไปยังไคลเอนต์
+  socket.emit("welcome", "Welcome to the server!");
+});
