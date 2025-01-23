@@ -1,0 +1,25 @@
+name: Auto Update and Push
+
+on:
+  push:
+    paths:
+      - "uploads/**"   # ตรวจจับการเปลี่ยนแปลงในโฟลเดอร์ uploads
+
+jobs:
+  auto-update:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set Up Git
+      run: |
+        git config --global user.name "P&T Auto Bot"
+        git config --global user.email "your-email@example.com"
+
+    - name: Commit and Push Changes
+      run: |
+        git add uploads/
+        git commit -m "Auto-update: Added new files in uploads"
+        git push origin main
